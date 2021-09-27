@@ -1,6 +1,6 @@
 from math import ceil
 from typing import Callable, Iterator, Optional, List
-from logging import getLogger
+from logging import currentframe, getLogger
 from bisect import bisect_right, bisect_left
 
 logger = getLogger('BPlusTree_Logger')
@@ -157,7 +157,7 @@ class BPlusTree:
         parent (BPlusTree_Node): The parent node of the new node
 
     Attributes:
-        hash_func (Callable): The hashing function to map key to integers
+        hash_func (Callable): The custom hashing function
         len (int): The total number of elements in the tree
 
     """
@@ -214,6 +214,8 @@ class BPlusTree:
             node.parent.children.append(node)
         new = BPlusTree_Node(self._order, node.parent) # create a new node on the right hand side
         new.left, new.right, node.right = node, node.right, new
+        if new.right: # if nodes exist on the right side of new node
+            new.right.left = new
         split_key = node.keys[pos] # the key to be inserted into parent node
         if node.leaf:
             node.keys, new.keys = node.keys[:pos], node.keys[pos:]
@@ -259,6 +261,8 @@ class BPlusTree:
             else: # inner nodes
                 key = node.parent.keys[pos]
                 child = node.left.children.pop()
+                if child.left:
+                    child.left.right = None
                 child.parent, child.left, child.right = node, None, node.children[0]
                 node.children[0].left = child
                 node.children.insert(0, child)
@@ -271,8 +275,10 @@ class BPlusTree:
                 key, split_key = split_key, node.right.keys[0]
                 node.values.append(node.right.values.pop(0))
             else: # inner nodes
-                key = node.parent.keys[pos]
+                key = node.parent.keys[pos-1]
                 child = node.right.children.pop(0)
+                if child.right:
+                    child.right.left = None
                 child.parent, child.left, child.right = node, node.children[-1], None
                 node.children[-1].right = child
                 node.children.append(child)
@@ -420,7 +426,7 @@ class BPlusTree:
         except TypeError:
             raise TypeError('Uncomparable key type, check hashing function.')
         else:
-            if dest.empty or dest.keys[pos] != hash_key:
+            if dest.empty or pos >= len(dest.keys) or dest.keys[pos] != hash_key:
                 raise ValueError(f'[{key}] key doesn\'t exist.')
             return dest.values[pos]
 
@@ -479,7 +485,7 @@ class BPlusTree:
         except TypeError:
             raise TypeError('Uncomparable key type, check hashing function.')
         else:
-            if dest.empty or dest.keys[pos] != hash_key:
+            if dest.empty or pos >= len(dest.keys) or dest.keys[pos] != hash_key:
                 raise ValueError(f'[{key}] key doesn\'t exist.')
             dest.keys.pop(pos)
             dest.values.pop(pos)
@@ -496,7 +502,17 @@ class BPlusTree:
         queue = [self._root]
         while queue:
             cur = queue.pop(0)
-            print(f'height: {cur.height}\n{cur.keys}\n{cur.values}')
+            print(f'height: {cur.height}\n{cur.keys}\n')
+            queue += cur.children
+
+    def check(self):
+        queue = [self._root]
+        while queue:
+            cur = queue.pop(0)
+            if not cur.leaf and cur.children[-1].right:
+                return False
+            elif cur.leaf:
+                return True
             queue += cur.children
 
     def items(self, slice_: Optional[slice] = None) -> Iterator[tuple]:
