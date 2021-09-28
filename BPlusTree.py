@@ -1,6 +1,6 @@
 from math import ceil
 from typing import Callable, Iterator, Optional, List
-from logging import currentframe, getLogger
+from logging import getLogger
 from bisect import bisect_right, bisect_left
 
 logger = getLogger('BPlusTree_Logger')
@@ -417,14 +417,15 @@ class BPlusTree:
             
         Raises:
             ValueError: if key does not exist.
+            TypeError: if key not comparable or hash function not callable
 
         """
-        hash_key = self.hash_func(key)
         try:
+            hash_key = self.hash_func(key)
             dest = self._find_target_leaf(hash_key)
             pos = bisect_left(dest.keys, hash_key) # search the appearance location
         except TypeError:
-            raise TypeError('Uncomparable key type, check hashing function.')
+            raise TypeError('Uncomparable key type or not callable hash function.')
         else:
             if dest.empty or pos >= len(dest.keys) or dest.keys[pos] != hash_key:
                 raise ValueError(f'[{key}] key doesn\'t exist.')
@@ -443,10 +444,11 @@ class BPlusTree:
             
         Raises:
             ValueError: if key already exists and update is not set to True.
+            TypeError: if key not comparable or hash function not callable
 
         """
-        hash_key = self.hash_func(key)
         try:
+            hash_key = self.hash_func(key)
             dest = self._find_target_leaf(hash_key)
             pos = bisect_right(dest.keys, hash_key) # search the insert location
         except TypeError:
@@ -476,10 +478,11 @@ class BPlusTree:
             
         Raises:
             ValueError: if key does not exist.
+            TypeError: if key not comparable or hash function not callable
 
         """
-        hash_key = self.hash_func(key)
         try:
+            hash_key = self.hash_func(key)
             dest = self._find_target_leaf(hash_key)
             pos = bisect_left(dest.keys, hash_key)
         except TypeError:
@@ -503,16 +506,6 @@ class BPlusTree:
         while queue:
             cur = queue.pop(0)
             print(f'height: {cur.height}\n{cur.keys}\n')
-            queue += cur.children
-
-    def check(self):
-        queue = [self._root]
-        while queue:
-            cur = queue.pop(0)
-            if not cur.leaf and cur.children[-1].right:
-                return False
-            elif cur.leaf:
-                return True
             queue += cur.children
 
     def items(self, slice_: Optional[slice] = None) -> Iterator[tuple]:
